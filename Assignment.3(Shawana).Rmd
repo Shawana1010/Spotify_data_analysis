@@ -1,0 +1,633 @@
+---
+title: "AD699_Assignment.3"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-10-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+
+# Main Topic: Classification
+ ● K-NearestNeighbors
+
+```{r}
+songs <- read.csv("C://Users/maxma/Documents/AD 699/AD 699 assignment 3/spot23.csv")
+```
+
+ a. What song did you pick?
+ 
+ I picked the song "Am I Dreaming" by Metro Boomin & A$AP Rocky, Roisee.
+ 
+ b.
+ This song is from my favorite movie that came out this year. The movie name is Spiderman: Across the spiderverse. 
+ 
+
+ 
+ c.
+ 
+ danceability: 0.6
+ energy: 0.53
+ speechiness: 0.04
+ acousticness: 0.04
+ liveness: 0.21
+ valence: 0.13
+ 
+2.
+```{r}
+row_index <- 172
+my_song <- songs[row_index, ]
+```
+
+3.
+```{r}
+spotify <- read.csv("C://Users/maxma/Documents/AD 699/AD 699 assignment 3/spotify.csv")
+str(spotify)
+```
+a.
+
+Target is a numeric variable. 
+```{r}
+spotify$target <- factor(spotify$target)
+```
+
+
+b. 
+
+```{r}
+unique(spotify$target)
+```
+```{r}
+table(spotify$target)
+```
+George liked 1020 songs and does not like 997 songs.
+
+4.
+```{r}
+any(is.na(spotify))
+```
+The dataset does not have any NA values. 
+
+5.a
+```{r}
+library(tidyverse)
+```
+```{r}
+columns_to_convert <- c("danceability_.", "energy_.", "speechiness_.", "valence_.", "acousticness_.", "liveness_.")
+my_song <- my_song %>%
+  mutate(across(all_of(columns_to_convert), ~./100))
+```
+
+5.b
+```{r}
+my_song <- my_song %>%
+  rename(
+    danceability = danceability_.,
+    energy = energy_.,
+    speechiness = speechiness_.,
+    valence = valence_.,
+    acousticness = acousticness_.,
+    liveness = liveness_.
+  )
+```
+
+6.
+```{r}
+set.seed(1626)
+train.index <- sample(c(1:nrow(spotify)), nrow(spotify)*0.6) 
+train.df <- spotify[train.index, ]
+valid.df <- spotify[-train.index, ]
+```
+
+7.a
+```{r}
+library(dplyr)
+G_liked <- filter(train.df, target=="1")
+G_notliked <- filter(train.df, target=="0")
+```
+
+```{r}
+t.test(G_liked$danceability, G_notliked$danceability)
+```
+```{r}
+t.test(G_liked$energy, G_notliked$energy)
+```
+
+```{r}
+t.test(G_liked$speechiness, G_notliked$speechiness)
+```
+
+```{r}
+t.test(G_liked$valence, G_notliked$valence)
+```
+
+```{r}
+t.test(G_liked$acousticness, G_notliked$acousticness)
+```
+
+```{r}
+t.test(G_liked$liveness, G_notliked$liveness)
+```
+danceability:
+t = 7.1632
+p-value = 1.371e-12
+The t-test for danceability has the smallest p-value, indicating the most significant difference between the groups.
+speechiness:
+t = 6.6869
+p-value = 3.651e-11
+
+acousticness:
+t = -5.6977
+p-value = 1.57e-08
+
+valence:
+t = 4.5589
+p-value = 5.666e-06
+
+energy:
+t = 2.453
+p-value = 0.01433
+This t test for energy has a somewhat small p-value.
+liveness:
+t = 1.6024
+p-value = 0.1093
+This t test value is not that significant. If we make the significant threshold for this p value or the alpha value to be 0.5, the liveness p value is bigger. Thus there are not a lot of significant difference between the variables tested.  
+
+7.b
+```{r}
+my_song <- subset(my_song, select = -liveness)
+```
+
+7.c
+It may make sense to remove variables with very similar values for both outcome classes in a k-nearest neighbors (k-NN) model because these variables are less informative for distinguishing between classes, potentially leading to noise in the model's predictions and increased computational complexity without adding meaningful discriminatory power.
+
+
+8.
+```{r}
+library(caret)
+
+# Specify the columns to normalize
+columns_to_normalize <- c("acousticness", "danceability", "energy", "speechiness", "valence")
+
+# Normalize train.df
+norm_values <- preProcess(train.df[, columns_to_normalize], method = c("center", "scale"))
+train.norm.df <- as.data.frame(predict(norm_values, train.df[, columns_to_normalize]))
+
+# Normalize valid.df
+valid.norm.df <- as.data.frame(predict(norm_values, valid.df[, columns_to_normalize]))
+
+# Normalize spotify
+spotify.norm.df <- as.data.frame(predict(norm_values, spotify[, columns_to_normalize]))
+
+# Normalize my_song
+my_song.norm <- as.data.frame(predict(norm_values, my_song[, columns_to_normalize]))
+
+
+```
+
+9.
+```{r}
+ library(FNN)
+my_song.norm <- my_song.norm[, 1:2]
+
+ nn <- knn(train = train.norm.df[, 1:2], test = my_song.norm,
+ cl = train.df[, 15], k = 7)
+ row.names(train.df)[attr(nn, "nn.index")]
+```
+```{r}
+nn
+```
+
+George will like the song as the outcome is 1. 
+```{r}
+values_to_filter <- c("1448", "798", "9", "466", "1864", "975", "581")
+
+filtered_data <- subset(spotify, X %in% values_to_filter,
+                        select = c("song_title", "artist","target"))
+
+print(filtered_data)
+```
+
+Here are the seven nearest songs for my song. The "target" variable  contains two distinct classes I predicted. They are 0 (meaning George does not like my song and 1 meaning George likes my song)
+
+10.
+```{r}
+accuracy.df <- data.frame(k = seq(1, 50, 1), accuracy = rep(0, 50))
+
+for(i in 1:50) {
+knn.pred <- knn(train.norm.df[, 1:2], valid.norm.df[, 1:2],
+cl = train.df[, 15], k = i)
+accuracy.df[i, 2] <- confusionMatrix(knn.pred, valid.df[, 15])$overall[1]
+}
+
+View(accuracy.df)
+```
+```{r}
+max(accuracy.df$accuracy)
+```
+The K value of 44 has the highest accuracy. 
+
+
+11.
+```{r}
+library(ggplot2)
+ggplot(accuracy.df, aes(x = k, y = accuracy)) +
+  geom_point() +  
+  labs(x = "Number of observations", y = "Accuracy", title = "Accuracy distribution") 
+```
+
+12.
+```{r}
+my_song.norm <- my_song.norm[, 1:2]
+
+ nn2 <- knn(train = train.norm.df[, 2:3], test = my_song.norm,
+ cl = train.df[, 15], k = 44)
+ row.names(train.df)[attr(nn2, "nn.index")]
+```
+```{r}
+nn2
+```
+
+```{r}
+values_to_filter2 <- c( "1031","1272","449","1780","103","1855","1679","989","1774","131",  "1675","430", "1242", "1099", "843",  "1290", "1245", "1897", "1040", "1845", "110","1424", "783","813","1411", "1256", "452","1493", "418","56", "1253", "165","1284","267", "65", "835", "2002", "177", "1050","1059", "1586","296","440","896" )
+
+
+
+filtered_data2 <- subset(spotify, X %in% values_to_filter2,
+                        select = c("song_title", "artist","target"))
+
+table(filtered_data2$target)
+```
+
+The results are wildly different. First of all, I chose a larger number to do the accuracy test and this time George did not like my song.
+The outcome class here again was 0 and 1. From that we can see  that George liked 20 songs and did not like 24 songs.  
+
+
+13.
+Using numeric attributes to predict whether someone will like a song can have limitations. It assumes a linear relationship between numeric features and the likelihood of liking a song, which may not capture more complex patterns in music preferences. The binary target variable (0 or 1) oversimplifies the notion of liking, as musical preferences can be highly nuanced and multifaceted. Also, k-NN tends to memorize the training data rather than generalize from it. This can result in overfitting if the training dataset is noisy.
+
+
+
+Naive Bayes:
+1.
+```{r}
+fitness_zone <- read.csv("C://Users/maxma/Documents/AD 699/AD 699 assignment 3/fitness_zone.csv")
+```
+
+```{r}
+sapply(fitness_zone, class)
+```
+
+2.a
+```{r}
+missing_summary <- summary(is.na(fitness_zone))
+print(missing_summary)
+```
+The variable weight has 20 missing values. The other variables do not have any missing vallues. 
+
+3.
+```{r}
+fitness_zone$days_before <- as.factor(fitness_zone$days_before)
+fitness_zone$day_of_week <- as.factor(fitness_zone$day_of_week)
+fitness_zone$time <- as.factor(fitness_zone$time)
+fitness_zone$category <- as.factor(fitness_zone$category)
+
+```
+
+4.
+```{r}
+table(fitness_zone$attended)
+```
+
+a.
+The response variables are 0 and 1. 0 means not attended and 1 means attended. There are more 0s than there are 1s.Thus not attending is more prevalent.
+
+b. 
+```{r}
+fitness_zone$attended <- as.factor(fitness_zone$attended)
+```
+
+
+5.
+
+While unique ID columns such as booking_id are essential for data management and record identification purposes, they are not suitable as predictors for predictive modeling tasks. It usually does not contain meaningful information related to the target variable or the underlying patterns in the data.  
+
+
+
+6.
+
+```{r}
+num_bins <- 5  
+
+fitness_zone$months_as_member_binned <- cut(fitness_zone$months_as_member, 
+                                            breaks = quantile(fitness_zone$months_as_member, 
+                                                              probs = seq(0, 1, length.out = num_bins + 1)),
+                                            labels = c("very_new", "new", "loyal", "silver", "gold_member"),
+                                            include.lowest = TRUE)
+
+fitness_zone$weight_binned <- cut(fitness_zone$weight, 
+                                   breaks = quantile(fitness_zone$weight, 
+                                                     probs = seq(0, 1, length.out = num_bins + 1),
+                                                     na.rm = TRUE),  
+                                   labels = c("very_light", "light", "moderate", "moderately_heavy", "heavy"),
+                                   include.lowest = TRUE)
+
+
+
+```
+
+a.
+```{r}
+table(fitness_zone$months_as_member_binned)
+```
+```{r}
+table(fitness_zone$weight_binned)
+```
+
+
+b. 
+In equal width binning, you divide the range of the numeric variable into a fixed number of equally spaced bins.In equal frequency binning, you divide the data into a fixed number of bins such that each bin contains approximately the same number of observations.
+
+If the data has a skewed distribution (e.g., positively or negatively skewed), equal width binning may result in some bins containing very few data points, making those bins less informative. Equal frequency binning ensures that each bin has a roughly equal number of data points, even in the presence of skewness.
+
+When the data contain outliers, equal width binning can be sensitive to these extreme values, resulting in bins that are heavily influenced by outliers. Equal frequency binning is more robust to outliers because it focuses on the distribution of data points rather than their specific values.
+
+c. 
+
+```{r}
+library(forcats)
+
+fitness_zone$weight_binned <- fct_explicit_na(fitness_zone$weight_binned, "NA")
+
+weight_table <- table(fitness_zone$weight_binned)
+
+weight_table
+
+```
+
+i. 
+Sometimes, the presence or absence of missing values (NAs) itself can be informative. It can indicate a specific pattern or behavior in the data that may be relevant to the analysis. NAs can also reflect the quality of the data. Variables with a high proportion of missing values may be less reliable or may need special treatment during analysis. 
+
+
+ii.
+```{r}
+level_table <- table(fitness_zone$weight_binned, useNA = "ifany")
+
+print(level_table)
+
+```
+7. 
+```{r}
+set.seed(1626)
+train.index <- sample(c(1:nrow(fitness_zone)), nrow(fitness_zone)*0.6) 
+train_df <- fitness_zone[train.index, ]
+valid_df <- fitness_zone[-train.index, ]
+```
+
+
+8.
+
+```{r}
+
+library(ggplot2)
+
+ggplot(train_df, aes(x = months_as_member_binned, fill = attended)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportional Barplot for Months as Member Binned") +
+  xlab("Months as Member Binned") +
+  ylab("Proportion") +
+  theme_minimal()
+
+```
+
+
+```{r}
+ggplot(train_df, aes(x = weight_binned, fill = attended)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportional Barplot for Weight Binned") +
+  xlab("Weight Binned") +
+  ylab("Proportion") +
+  theme_minimal()
+
+```
+
+```{r}
+ggplot(train_df, aes(x = category, fill = attended)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportional Barplot for Category") +
+  xlab("Category") +
+  ylab("Proportion") +
+  theme_minimal()
+```
+
+
+```{r}
+ggplot(train_df, aes(x = time, fill = attended)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportional Barplot for Time") +
+  xlab("Time") +
+  ylab("Proportion") +
+  theme_minimal()
+```
+
+
+```{r}
+ggplot(train_df, aes(x = day_of_week, fill = attended)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportional Barplot for Day of Week") +
+  xlab("Day of Week") +
+  ylab("Proportion") +
+  theme_minimal()
+```
+
+
+
+```{r}
+ggplot(train_df, aes(x = days_before, fill = attended)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportional Barplot for Days Before") +
+  xlab("Days Before") +
+  ylab("Proportion") +
+  theme_minimal()
+```
+a.
+
+The variable "time" might not have much predictive power in a naive bayes model.Naive Bayes is a probabilistic machine learning algorithm and the time variable classes (AM and PM)  seem to have similar probabilities. 
+
+```{r}
+train_df <- subset(train_df, select = -time)
+valid_df <- subset(valid_df, select = -time)
+
+```
+
+9. 
+```{r}
+library(e1071)
+fitness.nb <- naiveBayes(attended ~ months_as_member+weight+days_before + category, data = train_df)
+fitness.nb
+```
+
+
+10.
+
+```{r}
+library(caret)
+
+pred.class <- predict(fitness.nb, newdata = train_df)
+confusionMatrix(pred.class, train_df$attended)
+
+```
+```{r}
+
+pred.class <- predict(fitness.nb, newdata = valid_df)
+confusionMatrix(pred.class, valid_df$attended)
+
+```
+
+11.
+The naive rule in classification is a very simple and baseline approach to classification. It doesn't involve any sophisticated modeling or analysis. Instead, it classifies all records into the most frequent class in the training dataset, regardless of the input features or predictors. The naive rule assumes that the most common class in the training set will also be the most common class for any new data points.
+
+```{r}
+table(train_df$attended)
+```
+Because there are about twice as many unattended classes than attended, with the naive rule I would classify all of them as unattended. 
+
+
+a.
+
+Model Accuracy (training data) = 0.8
+Naive Rule Accuracy = 0.7122
+
+Percentage Difference = [(0.8 - 0.7122) / 0.7122] * 100%
+Percentage Difference = (0.0734 / 0.7122) * 100%
+Percentage Difference ≈ 12.32%
+
+So, the model's accuracy against training data is approximately 12.32% higher than the naive rule accuracy.
+
+Model Accuracy (validation data) = 0.7633
+Naive Rule Accuracy = 0.6750
+
+Percentage Difference = [(0.7633 - 0.6750) / 0.6750] * 100%
+Percentage Difference = (0.0917 / 0.6750) * 100%
+Percentage Difference ≈ 13.08%
+
+So, the model's accuracy against validation data is approximately 13.08% higher than the naive rule accuracy.
+
+
+12.
+
+
+```{r}
+pred.prob <- predict(fitness.nb, newdata = valid_df, type = "raw")
+pred.class <- predict(fitness.nb, newdata = valid_df)
+
+
+df <- data.frame(actual = valid_df$attended, predicted = pred.class, pred.prob)
+
+subset_records <- df[pred.class == 1, ][1:100, ]
+
+missed_actual <- sum(subset_records$actual == 1)
+
+accuracy_subset <- sum(subset_records$actual == subset_records$predicted) / nrow(subset_records)
+
+overall_accuracy <- sum(df$actual == df$predicted) / nrow(df)
+
+
+missed_actual
+
+```
+```{r}
+accuracy_subset
+```
+```{r}
+overall_accuracy
+```
+
+a. 
+Among the 100 records, 74 people actually missed their class. The accuracy for this subset is 0.74 and the overall accuracy is 0.7633333. The accuracy of the subset is slightly lower. 
+
+b. 
+This information can be used to proactively engage with these members and potentially reduce unattendance rates. Fitness Zone can reach out to these members with personalized messages, offers, or incentives to encourage their continued attendance. The gym can offer support and resources to address any specific concerns or challenges that these members may be facing.  Implement retention strategies such as reward programs, social engagement events, or goal-setting sessions to keep members motivated and committed to their fitness goals. 
+
+
+13.
+
+The record I picked is - 
+booking_id 1111
+months_as_member 18          
+weight  68.84    
+days_before  10
+day_of_week   Fri          
+category     HIIT  
+months_as_member_binned silver
+weight_binned  very_light
+attended      0
+    
+
+a. 
+The person did not attend the class they booked.
+
+b.
+```{r}
+new_record <- data.frame(
+  booking_id = 1111,
+  months_as_member = 18,
+  weight = 68.84,
+  days_before = 10,
+  day_of_week = "Fri",
+  category = "HIIT",
+  months_as_member_binned = "silver",
+  weight_binned = "very_light"
+)
+
+predicted_attendance <- predict(fitness.nb, newdata = new_record, type = "class")
+
+predicted_attendance
+
+```
+The model predicted that the person will not attend the class. The prediction is correct.
+
+c. 
+```{r}
+predicted_probabilities <- predict(fitness.nb, newdata = new_record, type = "raw")
+
+probability_of_attendance <- predicted_probabilities[, "1"]
+
+probability_of_attendance
+```
+The probability that my person will attend the class is 0.3438775 . Which is almost 35%. 
+
+
+
+
+d.
+   P(Y = 0 | X) = P(Y = 0) * P(months_as_member = 18 | Y = 0) * P(weight = 68.84 | Y = 0) * P(days_before = 10 | Y = 0) * P(category = "HIIT" | Y = 0)
+   
+ P(Y = 0 | X)= 0.7122222* 11.39626 * 84.97540* 0.188767551 * 0.441497660 
+
+= 57.22
+   
+   
+  P(Y = 1 | X) = P(Y = 1) * P(months_as_member = 18 | Y = 1) * P(weight = 68.84 | Y = 1) * P(days_before = 10 | Y = 1) * P(category = "HIIT" | Y = 1)
+
+ P(Y = 1 | X) = 0.2877778* 25.51351* 76.97984* 0.173745174* 0.498069498
+= 48.86
+
+
+   P(Attendance = 1 | X) = P(Y = 1 | X) / [P(Y = 0 | X) + P(Y = 1 | X)]
+
+= 48.86/  (57.22 + 48.86)
+
+=0.34
+
+
